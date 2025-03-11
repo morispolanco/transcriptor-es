@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Informes Orales a Escritos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .word-doc {
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            padding: 2.5cm 2cm;
+            min-height: 29.7cm;
+            font-family: 'Calibri', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            overflow-y: auto;
+        }
+        
+        .dark .word-doc {
+            background-color: #2d2d2d;
+            border-color: #444;
+            color: #eee;
+        }
+
+        .word-doc h1 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+            color: #404040;
+        }
+        
+        .dark .word-doc h1 {
+            color: #eee;
+        }
+
+        .word-doc h2 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+            color: #404040;
+        }
+        
+        .dark .word-doc h2 {
+            color: #eee;
+        }
+
+        .word-doc p {
+            margin-bottom: 0.5em;
+        }
+
+        .word-doc ul, .word-doc ol {
+            margin-left: 2em;
+            margin-bottom: 0.5em;
+        }
+
+        .word-doc ul {
+            list-style-type: disc;
+        }
+
+        .word-doc ol {
+            list-style-type: decimal;
+        }
+
+        .hidden-textarea {
+            position: absolute;
+            left: -9999px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .word-toolbar {
+                background-color: #2d2d2d;
+                border-color: #444;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
+    <div class="container mx-auto max-w-4xl">
+        <h1 class="text-2xl font-bold text-center mb-6">Conversor de Informes Orales a Escritos</h1>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+            <div class="mb-4">
+                <label for="report-type" class="block text-sm font-medium mb-2">Tipo de informe:</label>
+                <select id="report-type" class="w-full px-3 py-2 border rounded-md text-base focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600">
+                    <option value="general">Informe general</option>
+                    <option value="business">Informe de negocio</option>
+                    <option value="academic">Informe académico</option>
+                    <option value="technical">Informe técnico</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label for="transcription" class="block text-sm font-medium mb-2">Transcripción (también puedes hablar):</label>
+                <div class="relative">
+                    <textarea id="transcription" rows="6" class="w-full px-3 py-2 border rounded-md text-base focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600" placeholder="La transcripción de tu informe oral aparecerá aquí..."></textarea>
+                    <div class="absolute right-2 bottom-2 flex space-x-2">
+                        <button id="start-recording" class="p-2 bg-primary text-white rounded-full hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <button id="stop-recording" class="p-2 bg-red-500 text-white rounded-full hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="recording-status" class="mt-2 text-sm text-gray-600 dark:text-gray-400 hidden">
+                    <span class="flex items-center">
+                        <span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
+                        Grabando... Habla ahora
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap justify-center gap-3">
+                <button id="generate-report" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Generar informe
+                </button>
+                <button id="clear-all" class="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50">
+                    Limpiar todo
+                </button>
+            </div>
+        </div>
+        
+        <div id="loading-indicator" class="flex justify-center items-center my-6 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <p class="ml-4 text-lg">Generando informe, por favor espera...</p>
+        </div>
+        
+        <div id="result-container" class="hidden mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-t-lg shadow-md">
+                <div class="word-toolbar flex items-center justify-between p-2 bg-gray-200 dark:bg-gray-700 rounded-t-lg border-b border-gray-300 dark:border-gray-600">
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium">Documento.docx</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="copy-content" class="px-3 py-1 bg-primary text-white rounded hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 text-sm">
+                            Copiar todo
+                        </button>
+                    </div>
+                </div>
+                <div id="report-container" class="word-doc"></div>
+            </div>
+            <p class="text-sm text-center mt-2 text-gray-600 dark:text-gray-400">
+                La descarga directa no está disponible. Por favor, copia el contenido y pégalo en un documento de Word.
+            </p>
+        </div>
+        
+        <textarea id="copy-textarea" class="hidden-textarea"></textarea>
+    </div>
+    
+    <script>
+        // Check for dark mode
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const startRecordingBtn = document.getElementById('start-recording');
+            const stopRecordingBtn = document.getElementById('stop-recording');
+            const recordingStatus = document.getElementById('recording-status');
+            const transcriptionArea = document.getElementById('transcription');
+            const generateReportBtn = document.getElementById('generate-report');
+            const clearAllBtn = document.getElementById('clear-all');
+            const reportTypeSelect = document.getElementById('report-type');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resultContainer = document.getElementById('result-container');
+            const reportContainer = document.getElementById('report-container');
+            const copyContentBtn = document.getElementById('copy-content');
+            const copyTextarea = document.getElementById('copy-textarea');
+            
+            // Speech recognition setup
+            let recognition = null;
+            let isRecording = false;
+            
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'es-ES'; // Spanish language
+                
+                recognition.onstart = function() {
+                    isRecording = true;
+                    recordingStatus.classList.remove('hidden');
+                    startRecordingBtn.classList.add('hidden');
+                    stopRecordingBtn.classList.remove('hidden');
+                };
+                
+                recognition.onend = function() {
+                    isRecording = false;
+                    recordingStatus.classList.add('hidden');
+                    startRecordingBtn.classList.remove('hidden');
+                    stopRecordingBtn.classList.add('hidden');
+                };
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    
+                    if (finalTranscript) {
+                        transcriptionArea.value += ' ' + finalTranscript;
+                    }
+                    
+                    // Update UI based on content
+                    updateButtonState();
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Error en reconocimiento de voz:', event.error);
+                    recognition.stop();
+                };
+            } else {
+                startRecordingBtn.disabled = true;
+                startRecordingBtn.title = 'El reconocimiento de voz no está disponible en este navegador';
+            }
+            
+            // Button event listeners
+            startRecordingBtn.addEventListener('click', function() {
+                if (recognition) {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.error('Error al iniciar reconocimiento:', error);
+                    }
+                }
+            });
+            
+            stopRecordingBtn.addEventListener('click', function() {
+                if (recognition && isRecording) {
+                    recognition.stop();
+                }
+            });
+            
+            transcriptionArea.addEventListener('input', updateButtonState);
+            
+            function updateButtonState() {
+                generateReportBtn.disabled = !transcriptionArea.value.trim();
+            }
+            
+            generateReportBtn.addEventListener('click', async function() {
+                const transcription = transcriptionArea.value.trim();
+                if (!transcription) return;
+                
+                const reportType = reportTypeSelect.value;
+                
+                // Show loading indicator
+                loadingIndicator.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+                
+                // Register handler for bot response
+                const handlerId = 'report-handler-' + Date.now();
+                
+                window.Poe.registerHandler(handlerId, (result) => {
+                    const response = result.responses[0];
+                    
+                    if (response.status === "error") {
+                        reportContainer.innerHTML = `<p class="text-red-500">Error: ${response.statusText || 'Ha ocurrido un error al generar el informe'}</p>`;
+                        loadingIndicator.classList.add('hidden');
+                        resultContainer.classList.remove('hidden');
+                    } else if (response.status === "complete" || response.status === "incomplete") {
+                        // Parse the markdown content
+                        const htmlContent = marked.parse(response.content);
+                        reportContainer.innerHTML = htmlContent;
+                        
+                        if (response.status === "complete") {
+                            loadingIndicator.classList.add('hidden');
+                            resultContainer.classList.remove('hidden');
+                        }
+                    }
+                });
+                
+                try {
+                    // Create prompt based on report type
+                    let prompt = `@Claude-3.7-Sonnet Por favor, convierte la siguiente transcripción oral en un informe profesional bien estructurado `;
+                    
+                    switch (reportType) {
+                        case 'business':
+                            prompt += `de negocios. Incluye introducción, resumen ejecutivo, desarrollo con secciones claras, conclusiones y recomendaciones. Usa lenguaje formal y profesional. `;
+                            break;
+                        case 'academic':
+                            prompt += `académico. Incluye introducción, marco teórico, metodología, resultados, discusión y conclusiones. Usa lenguaje académico y formal. `;
+                            break;
+                        case 'technical':
+                            prompt += `técnico. Incluye resumen ejecutivo, introducción, especificaciones técnicas, análisis, implementación, pruebas y resultados. Usa lenguaje técnico y preciso. `;
+                            break;
+                        default: // general
+                            prompt += `general. Incluye introducción, desarrollo, conclusiones y recomendaciones. Usa lenguaje claro y profesional. `;
+                    }
+                    
+                    prompt += `Reformula el texto manteniendo todas las ideas importantes, mejorando la redacción y corrigiendo errores gramaticales. Aquí está la transcripción: "${transcription}"`;
+                    
+                    await window.Poe.sendUserMessage(prompt, {
+                        handler: handlerId,
+                        stream: true,
+                        openChat: false
+                    });
+                } catch (err) {
+                    reportContainer.innerHTML = `<p class="text-red-500">Error al generar el informe: ${err.message || err}</p>`;
+                    loadingIndicator.classList.add('hidden');
+                    resultContainer.classList.remove('hidden');
+                }
+            });
+            
+            clearAllBtn.addEventListener('click', function() {
+                transcriptionArea.value = '';
+                reportContainer.innerHTML = '';
+                resultContainer.classList.add('hidden');
+                updateButtonState();
+            });
+            
+            copyContentBtn.addEventListener('click', function() {
+                // Get report content
+                const content = reportContainer.innerText;
+                copyTextarea.value = content;
+                copyTextarea.select();
+                
+                try {
+                    // Execute copy command
+                    document.execCommand('copy');
+                    
+                    // Show success indicator
+                    const originalText = copyContentBtn.textContent;
+                    copyContentBtn.textContent = '¡Copiado!';
+                    setTimeout(() => {
+                        copyContentBtn.textContent = originalText;
+                    }, 2000);
+                } catch (err) {
+                    console.error('Error al copiar:', err);
+                    alert('No se pudo copiar el texto. Por favor, inténtalo manualmente.');
+                }
+            });
+            
+            // Initial button state
+            updateButtonState();
+        });
+    </script>
+</body>
+</html>
